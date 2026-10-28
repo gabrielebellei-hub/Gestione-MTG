@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Gestione MTG</title>
+<meta name="theme-color" content="#1b2130">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Gestione MTG">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+  html, body { margin: 0; height: 100%; background: #f3f4f7; }
+  @media (prefers-color-scheme: dark) { html, body { background: #12151d; } }
+  iframe { position: fixed; inset: 0; width: 100%; height: 100%; height: 100dvh; border: 0; display: block; }
+  #fallback { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; padding: 24px;
+    font: 16px/1.5 system-ui, sans-serif; text-align: center; color: #1b2130; }
+  #fallback a { color: #b9770e; font-weight: 600; }
+</style>
+</head>
+<body>
+<!-- Sostituisci l'indirizzo qui sotto se un giorno cambi il deployment di Apps Script -->
+<iframe id="app"
+  src="https://script.google.com/macros/s/AKfycbx6PqwRT_4Rxfu0rA8aEvhaVfJGnQsWF0hIr0bAkZIUeUMTAKstES7wlUJ3ZQ2yRQlH8A/exec"
+  allow="clipboard-write" title="Gestione MTG"></iframe>
+<div id="fallback">
+  <p>Nessuna connessione o app non raggiungibile.<br><a href="./">Riprova</a></p>
+</div>
+<script>
+  if (!navigator.onLine) { document.getElementById('fallback').style.display = 'flex'; }
+  window.addEventListener('online', function () { location.reload(); });
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(function () {});
+  }
+</script>
+</body>
+</html>
