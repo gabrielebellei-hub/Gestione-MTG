@@ -1,6 +1,6 @@
 // Service worker minimo: tiene in cache la "cornice" dell'app così si apre anche con rete lenta.
 // I dati veri passano sempre da Apps Script e non vengono mai messi in cache.
-const CACHE = 'gestione-mtg-v1';
+const CACHE = 'gestione-mtg-v2';
 const FILES = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', function (e) {
