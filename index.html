@@ -18,6 +18,19 @@
   #fallback { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; padding: 24px;
     font: 16px/1.5 system-ui, sans-serif; text-align: center; color: #1b2130; }
   #fallback a { color: #b9770e; font-weight: 600; }
+  #imp { position: fixed; inset: 0; z-index: 10; background: rgba(15,18,26,.6); display: none; align-items: center; justify-content: center; padding: 16px;
+    font: 16px/1.45 system-ui, sans-serif; }
+  #imp .box { background: #fff; color: #1b2130; border-radius: 14px; padding: 20px; width: 100%; max-width: 420px; box-shadow: 0 10px 40px rgba(0,0,0,.3); }
+  #imp h2 { margin: 0 0 6px; font-size: 1.15rem; text-transform: uppercase; letter-spacing: .03em; }
+  #imp label { display: block; font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #5b6475; margin: 12px 0 4px; }
+  #imp input { width: 100%; box-sizing: border-box; font: inherit; padding: 9px 10px; border: 1px solid #cfd4de; border-radius: 8px; }
+  #imp .btns { display: flex; gap: 8px; margin-top: 16px; }
+  #imp button { flex: 1; font: 600 15px system-ui, sans-serif; padding: 11px; border-radius: 8px; border: 1px solid #cfd4de; background: #fff; color: #1b2130; }
+  #imp button.go { background: #b9770e; border-color: #b9770e; color: #fff; }
+  #imp button:disabled { opacity: .6; }
+  #imp .msg { margin-top: 12px; font-size: .92rem; }
+  #imp .ok { color: #1f7a4d; } #imp .ko { color: #b42318; }
+  @media (prefers-color-scheme: dark) { #imp .box { background: #1b2130; color: #eef0f5; } #imp input, #imp button { background: #12151d; color: #eef0f5; border-color: #3a4256; } }
 </style>
 </head>
 <body>
@@ -25,6 +38,16 @@
 <iframe id="app"
   src="https://script.google.com/macros/s/AKfycbwr9LN-wIwtuTiKMNMW7UD747aGK9ASmHDwQJ8OAc7T6OGPcPstZ7w4b7zg8cxV71Xgmg/exec"
   allow="clipboard-write" title="Gestione MTG"></iframe>
+<div id="imp" role="dialog" aria-modal="true" aria-labelledby="imptit">
+  <div class="box">
+    <h2 id="imptit">Importa collezione</h2>
+    <div id="impinfo">Leggo il file…</div>
+    <label for="impnome">Nome del binder</label><input id="impnome">
+    <label for="imppin">PIN</label><input id="imppin" type="password" inputmode="numeric" autocomplete="off">
+    <div class="btns"><button type="button" id="impno">Annulla</button><button type="button" class="go" id="impgo">Importa</button></div>
+    <div class="msg" id="impmsg"></div>
+  </div>
+</div>
 <div id="fallback">
   <p>Nessuna connessione o app non raggiungibile.<br><a href="./">Riprova</a></p>
 </div>
@@ -34,6 +57,57 @@
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch(function () {});
   }
+</script>
+<script>
+  // CSV condiviso da ManaBox (Android: Condividi -> Gestione MTG)
+  (function () {
+    if (!/[?&]condiviso=1/.test(location.search) || !('caches' in window)) return;
+    var EXEC = document.getElementById('app').getAttribute('src');
+    var $ = function (id) { return document.getElementById(id); };
+    var dati = null;
+    function chiudi() {
+      caches.open('gestione-mtg-condivisi').then(function (c) { c.delete('./condiviso.json'); });
+      $('imp').style.display = 'none';
+      history.replaceState(null, '', './');
+    }
+    function pinSalvato() { try { return localStorage.getItem('gmtg-pin') || ''; } catch (e) { return ''; } }
+    $('imp').style.display = 'flex';
+    $('imppin').value = pinSalvato();
+    caches.open('gestione-mtg-condivisi').then(function (c) { return c.match('./condiviso.json'); })
+      .then(function (r) { return r ? r.json() : null; })
+      .then(function (d) {
+        if (!d || !d.csv) { $('impinfo').textContent = 'Non ho ricevuto nessun file. Riprova a condividere il CSV da ManaBox.'; $('impgo').disabled = true; return; }
+        dati = d;
+        var righe = d.csv.split(/\r?\n/).filter(function (x) { return x.trim(); }).length - 1;
+        $('impinfo').innerHTML = 'File <b></b> · ' + Math.max(righe, 0) + ' righe.';
+        $('impinfo').querySelector('b').textContent = d.nome;
+        $('impnome').value = String(d.nome).replace(/\.csv$/i, '').replace(/_+/g, ' ');
+      });
+    $('impno').onclick = chiudi;
+    $('impgo').onclick = function () {
+      if (!dati) return;
+      var pin = $('imppin').value.trim();
+      if (!pin) { $('impmsg').className = 'msg ko'; $('impmsg').textContent = 'Inserisci il PIN.'; return; }
+      var b = this; b.disabled = true; b.textContent = 'Importo…'; $('impmsg').textContent = '';
+      fetch(EXEC, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ azione: 'importaCollezione', pin: pin, nome: $('impnome').value.trim() || dati.nome, csv: dati.csv }) })
+        .then(function (r) { return r.json(); })
+        .then(function (x) {
+          if (!x.ok) throw new Error(x.errore || 'errore');
+          try { localStorage.setItem('gmtg-pin', pin); } catch (e) {}
+          var r = x.risultato || {};
+          $('impmsg').className = 'msg ok';
+          $('impmsg').textContent = 'Importato: ' + (r.binder || []).join(', ') + ' \u2013 ' + r.carte + ' carte (' + r.righe + ' righe). Le trovi in Carte \u2192 Collezione.';
+          b.textContent = 'Fatto'; $('impno').textContent = 'Chiudi';
+          $('app').src = EXEC;
+        })
+        .catch(function (e) {
+          $('impmsg').className = 'msg ko';
+          $('impmsg').textContent = 'Importazione non riuscita: ' + e.message;
+          b.disabled = false; b.textContent = 'Importa';
+        });
+    };
+  })();
 </script>
 </body>
 </html>
