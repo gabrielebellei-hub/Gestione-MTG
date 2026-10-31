@@ -89,23 +89,38 @@
       var pin = $('imppin').value.trim();
       if (!pin) { $('impmsg').className = 'msg ko'; $('impmsg').textContent = 'Inserisci il PIN.'; return; }
       var b = this; b.disabled = true; b.textContent = 'Importo…'; $('impmsg').textContent = '';
-      fetch(EXEC, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ azione: 'importaCollezione', pin: pin, nome: $('impnome').value.trim() || dati.nome, csv: dati.csv }) })
-        .then(function (r) { return r.json(); })
-        .then(function (x) {
-          if (!x.ok) throw new Error(x.errore || 'errore');
-          try { localStorage.setItem('gmtg-pin', pin); } catch (e) {}
-          var r = x.risultato || {};
-          $('impmsg').className = 'msg ok';
-          $('impmsg').textContent = 'Importato: ' + (r.binder || []).join(', ') + ' \u2013 ' + r.carte + ' carte (' + r.righe + ' righe). Le trovi in Carte \u2192 Collezione.';
-          b.textContent = 'Fatto'; $('impno').textContent = 'Chiudi';
-          $('app').src = EXEC;
-        })
-        .catch(function (e) {
-          $('impmsg').className = 'msg ko';
-          $('impmsg').textContent = 'Importazione non riuscita: ' + e.message;
-          b.disabled = false; b.textContent = 'Importa';
-        });
+      var req = Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+      function fine(x) {
+        if (!x.ok) {
+          $('impmsg').className = 'msg ko'; $('impmsg').textContent = 'Importazione non riuscita: ' + (x.errore || 'errore');
+          b.disabled = false; b.textContent = 'Importa'; return;
+        }
+        try { localStorage.setItem('gmtg-pin', pin); } catch (e) {}
+        var r = x.risultato || {};
+        $('impmsg').className = 'msg ok';
+        $('impmsg').textContent = 'Importato: ' + (r.binder || []).join(', ') + ' \u2013 ' + r.carte + ' carte (' + r.righe + ' righe). Le trovi in Carte \u2192 Collezione.';
+        b.textContent = 'Fatto'; $('impno').textContent = 'Chiudi';
+        $('app').src = EXEC;
+      }
+      // esito letto con JSONP: funziona anche quando il browser blocca la risposta del POST
+      var tentativi = 0;
+      function controlla() {
+        tentativi++;
+        var cb = 'gmtgEsito' + tentativi, s = document.createElement('script');
+        window[cb] = function (x) {
+          delete window[cb]; s.remove();
+          if (x && !x.attesa) return fine(x);
+          if (tentativi < 45) setTimeout(controlla, 2000);
+          else fine({ ok: false, errore: 'nessuna risposta dal foglio. Controlla di aver pubblicato la nuova versione dello script.' });
+        };
+        s.onerror = function () { s.remove(); if (tentativi < 45) setTimeout(controlla, 2000); else fine({ ok: false, errore: 'app non raggiungibile.' }); };
+        s.src = EXEC + '?cb=' + cb + '&req=' + req + '&t=' + Date.now();
+        document.body.appendChild(s);
+      }
+      fetch(EXEC, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ azione: 'importaCollezione', req: req, pin: pin, nome: $('impnome').value.trim() || dati.nome, csv: dati.csv }) })
+        .catch(function () {})
+        .then(function () { $('impmsg').className = 'msg'; $('impmsg').textContent = 'Inviato, attendo la conferma dal foglio\u2026'; setTimeout(controlla, 1500); });
     };
   })();
 </script>

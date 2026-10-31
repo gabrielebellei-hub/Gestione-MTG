@@ -1,6 +1,6 @@
 // Service worker: tiene in cache la "cornice" dell'app e riceve i CSV condivisi da ManaBox.
 // I dati veri passano sempre da Apps Script e non vengono mai messi in cache.
-const CACHE = 'gestione-mtg-v3';
+const CACHE = 'gestione-mtg-v4';
 const SHARE = 'gestione-mtg-condivisi';
 const FILES = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 
